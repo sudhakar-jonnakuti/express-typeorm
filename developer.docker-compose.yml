@@ -1,0 +1,74 @@
+version: '3'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: blog
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  pgadmin:
+    depends_on:
+      - postgres
+    image: dpage/pgadmin4
+    container_name: pgadmin    
+    environment:
+      PGADMIN_DEFAULT_EMAIL: username@company.org
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_LISTEN_PORT: 80
+    ports:
+      - "5433:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - app-network
+
+  express-typeorm:
+    depends_on:
+      - postgres
+    build:
+      context: .
+      dockerfile: developer.dockerfile
+    image: express-typeorm
+    container_name: express-typeorm
+    ports:
+      - "5000:5000"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: blog
+    volumes:
+      - .:/home/node/app
+      - node_modules:/home/node/app/node_modules
+    command: >
+      bash -c "
+        npm run app:typecheck
+        npm run app:lint
+        npm run app:build
+        npm run app:start:dev
+      "
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgresql-data:
+  pgadmin-data:
+  node_modules:
